@@ -1,0 +1,221 @@
+%YAML 1.2
+---
+# See http://www.sublimetext.com/docs/3/syntax.html
+file_extensions:
+  - yaml
+  - api.yaml
+scope: source.yaml
+extends: Packages/YAML/YAML.sublime-syntax
+
+# @TODO parameters
+variables:
+  swagger: '(swagger|info|host|basePath|schemes|consumes|produces|paths|definitions|parameters|responses|securityDefinitions|security|tags|externalDocs)'
+  info: '(title|description|termsOfService|contact|license|version)'
+  path: '(get|post|put|delete|options|head|patch|parameters)'
+  operation: '(tags|summary|description|externalDocs|operationId|consumes|produces|parameters|responses|schemes|deprecated|security)'
+  externalDocs: (description|url)
+  parameter: (name|in|description|required|schema|type|format|allowEmptyValue|items|collectionFormat|default|maximum|exclusiveMaximum|minimum|exclusiveMinimum|maxLength|minLength|pattern|maxItems|minItems|uniqueItems|enum|multipleOf)
+  schema: (format|title|description|default|multipleOf|maximum|exclusiveMaximum|minimum|exclusiveMinimum|maxLength|minLength|pattern|maxItems|minItems|uniqueItems|maxProperties|minProperties|required|enum|type|items|allOf|properties|additionalProperties|discriminator|readOnly|xml|externalDocs|example)
+  # responses: wip
+  # security: wip
+
+contexts:
+  node:
+    - meta_prepend: true
+    - include: swagger
+    - include: default-context
+
+  extension:
+    - match: '(x\-)([\w\-]+)\b'
+      scope: entity.name.constant entity.name.other.extension
+
+  reference:
+    - match: '^[ ]+(\$ref) *(\:) *'
+      captures:
+        1: keyword.other
+        2: punctuation.separator.key-value.mapping
+      push:
+        - meta_scope: meta.block.swagger.reference
+        - match: "['\"]"
+          scope: punctuation.definition.string.begin
+          push:
+            - match: '\#\/(.+)\/([\w\-]+)'
+              scope: support.type
+              captures:
+                2: entity.other.inherited-class
+            - match: "['\"]"
+              scope: punctuation.definition.string.end
+              pop: 2
+
+  default-context:
+    - include: extension
+    - include: block-node
+
+  swagger:
+    - meta_scope: meta.tag.swagger
+
+    - match: '^info'
+      scope: keyword.other
+      push: info
+
+    # - match: '^securityDefinitions'
+    #   scope: keyword.other
+    #   push: definitions
+
+    - match: '^definitions'
+      scope: keyword.other
+      push: Packages/OpenAPI/Definitions.sublime-syntax
+
+    - match: '^parameters'
+      scope: keyword.other
+      push: parameters
+
+    - match: '^paths'
+      scope: keyword.other.swagger.paths
+      push: paths
+
+    - match: '^{{swagger}}'
+      scope: keyword.other.swagger
+
+    # - match: '^\s+{{swagger}}'
+    #   scope: invalid.illegal
+
+  parameters:
+    - match: '^(?:\t{1}| {2})(\w+)\: *'
+      captures:
+        1: entity.name.type
+
+    - match: '^(?=\S)'
+      pop: true
+    - include: default-context
+
+  securityDefinitions:
+    - match: '^(?:\t{1}| {2})(\w+)\: *'
+      captures:
+        1: entity.name.type
+
+    - match: '^(?=\S)'
+      pop: true
+    - include: default-context
+
+  info:
+    - meta_scope: meta.tag.swagger.info
+    - match: '^(?:\t{1}| {2}){{info}}'
+      scope: constant.language.info
+    - match: '(?:\t{0,}| {0,}){{info}}'
+      scope: invalid.illegal
+
+    - match: '^(?=\S)'
+      pop: true
+    - include: default-context
+
+  paths:
+    - match: ^ {2}[\'\"]?(\/[^\'\"\s]+)[\'\"]?(?=\:$)
+    # - match: (?:(?<=^\t{1})|(?<=^ {2}))(?:[\'\"]|)(\/[^\s\:\'\"]+)(?:[\'\"]|)
+      captures:
+        1: variable.other.constant.swagger.path
+      push: path
+
+    - match: '(?=^ {0,2}\S)'
+      pop: true
+    - include: default-context
+
+  path:
+    # path = (get|post|put|delete|options|head|patch|parameters)
+    - match: '^ {4}{{path}}'
+      scope: keyword.other
+      push: operation
+
+    - match: '(?=^ {0,4}\S)'
+      pop: true
+    - include: default-context
+
+  operation:
+    # - meta_scope: meta.tag.swagger.paths.operation
+
+    - match: '^(?:\t{3}| {6})(operationId)(?: *\: *)'
+      captures:
+        1: keyword.other
+      push:
+        - match: '[\w]+'
+          scope: entity.name.function entity.name.type
+        - match: \s
+          pop: true
+
+    - match: '^(?:\t{3}| {6})(parameters)(?: *\: *)'
+      captures:
+        1: keyword.other
+      push: parameter
+
+    - match: '^(?:\t{0,3}| {0,6}){{operation}}'
+      scope: keyword.other
+
+    # - match: '^(?:\t{2}| {4})'
+    - match: '(?=^ {0,6}\S)'
+      pop: true
+    - include: default-context
+
+  parameter:
+    - meta_scope: meta.swagger.parameter
+
+    - match: '^(?:\t{5}| {10})(schema)'
+      captures:
+        1: keyword.other
+      push: x_schema
+
+    - match: '^[ ]{8,}(\- )*({{parameter}})\: *'
+      captures:
+        1: meta.block.swagger-parameter-item.begin
+        2: keyword.other
+
+    # - match: '^(?:\t{5}| {10}){{parameter}}'
+    #   scope: keyword.other
+    - match: '(?=^(\t{0,5}| {0,10})\S)'
+      pop: true
+    - include: default-context
+
+  x_schema:
+    - meta_content_scope: meta.block.swagger.schema
+
+    - include: reference
+    # - match: '^[ ]+(?=\$ref *\: *)'
+    #   push: reference
+
+    - match: '^[ ]{12,}(properties)\: *'
+      captures:
+        1: keyword.other
+      set: x_property
+
+    - match: '^[ ]{12,}({{schema}})\: *'
+      captures:
+        1: keyword.other meta.schema.others.top
+
+    # pop context if there is a spaced "   field: "
+    - match: '(?=^[ ]+\S+\: *)'
+      pop: true
+
+    - include: block-node
+
+  x_property:
+    - meta_content_scope: meta.block.swagger.property
+
+    - include: reference
+
+    - match: "^[ ]{12,}[\'\"]*"
+      scope: test
+      push:
+        - match: "[\"\']*\b"
+          scope: punctuation.definition.string.begin
+
+        - match: '\w+'
+          scope: entity.name.constant
+
+        - match: "\b[\"\']*"
+          scope: punctuation.definition.string.end
+
+        - match: '\: *'
+          scope: punctuation.terminator
+          set: x_schema
+
+    - match: '(?=^[ ]+\S+\: *)'
+      pop: true
