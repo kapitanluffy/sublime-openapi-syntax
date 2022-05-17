@@ -1,0 +1,106 @@
+%YAML 1.2
+---
+extends: Packages/YAML/YAML.sublime-syntax
+hidden: true
+file_extensions:
+  - yaml
+  - api.yaml
+scope: source.yaml
+
+variables:
+  schema: (format|title|description|default|multipleOf|maximum|exclusiveMaximum|minimum|exclusiveMinimum|maxLength|minLength|pattern|maxItems|minItems|uniqueItems|maxProperties|minProperties|required|enum|type|items|allOf|properties|additionalProperties|discriminator|readOnly|xml|externalDocs|example)
+  parameter: (name|in|description|required|schema|type|format|allowEmptyValue|items|collectionFormat|default|maximum|exclusiveMaximum|minimum|exclusiveMinimum|maxLength|minLength|pattern|maxItems|minItems|uniqueItems|enum|multipleOf)
+
+contexts:
+  main:
+    - match: '^(?:\t{1}| {2})(\w+)\: *'
+      captures:
+        1: entity.name.type
+      push: parameter
+
+    - match: '^(?=\S)'
+      pop: true
+
+    - include: block-node
+
+  parameter:
+    - meta_content_scope: meta.block.swagger.parameter
+
+    - include: Packages/OpenAPI/Reference.sublime-syntax
+
+    - match: '^[\t ]{4,}(schema)\: *'
+      captures:
+        1: keyword.other
+      push: _schema
+
+    - match: '^[\t ]{4,}({{parameter}})\: *'
+      captures:
+        1: keyword.other meta.schema.others.top
+
+    # pop context if there is a spaced "   field: "
+    - match: '(?=^[ ]{,2}\S+\: *)'
+      pop: true
+
+    - include: block-node
+
+  _schema:
+    - meta_content_scope: meta.block.swagger.schema
+
+    - include: Packages/OpenAPI/Reference.sublime-syntax
+
+    - match: '^[\t ]{4,}(properties)\: *'
+      captures:
+        1: keyword.other
+      set: _property
+
+    - match: '^[\t ]{4,}({{schema}})\: *'
+      captures:
+        1: keyword.other meta.schema.others.top
+
+    # pop context if there is a spaced "   field: "
+    - match: '(?=^[ ]+\S+\: *)'
+      pop: true
+
+    - include: block-node
+
+  _property:
+    - meta_content_scope: meta.block.swagger.property
+
+    - include: Packages/OpenAPI/Reference.sublime-syntax
+
+    - match: "^[ ]{6,}[\'\"]*"
+      scope: test
+      push:
+        - match: "[\"\']*\b"
+          scope: punctuation.definition.string.begin
+
+        - match: '\w+'
+          scope: entity.name.constant
+
+        - match: "\b[\"\']*"
+          scope: punctuation.definition.string.end
+
+        - match: '\: *'
+          scope: punctuation.terminator
+          set: _schema
+
+    - match: '(?=^[ ]+\S+\: *)'
+      pop: true
+
+  reference:
+    - match: '^[ ]+(?:\- |)(\$ref) *(\:) *'
+      captures:
+        1: keyword.other
+        2: punctuation.separator.key-value.mapping
+      push:
+        - meta_scope: meta.block.swagger.reference
+        - match: "['\"]"
+          scope: punctuation.definition.string.begin
+          push:
+            - match: '\#\/(.+)\/([\w\-]+)'
+              scope: support.type
+              captures:
+                2: entity.other.inherited-class
+            - match: "['\"]"
+              scope: punctuation.definition.string.end
+              pop: 2

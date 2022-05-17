@@ -1,0 +1,70 @@
+%YAML 1.2
+---
+extends: Packages/YAML/YAML.sublime-syntax
+hidden: true
+file_extensions:
+  - yaml
+  - api.yaml
+scope: source.yaml
+
+variables:
+  info: (title|description|termsOfService|contact|license|version)
+  contact: (name|url|email)
+  license: (name|url)
+
+contexts:
+  main:
+    - meta_scope: meta.tag.swagger.info
+
+    - include: extension
+    - include: Packages/OpenAPI/Reference.sublime-syntax
+
+    - match: '^(?:\t{1}| {2})(contact)\: *'
+      captures:
+        1: keyword.other
+      push:
+        - match: '^(?: {4}){{contact}}'
+          scope: keyword.other
+        - match: '(?=^[ ]{,2}\S+\: *)'
+          pop: true
+        - include: block-node
+
+    - match: '^(?:\t{1}| {2})(license)\: *'
+      captures:
+        1: keyword.other
+      push:
+        - match: '^(?: {4}){{license}}'
+          scope: keyword.other
+        - match: '(?=^[ ]{,2}\S+\: *)'
+          pop: true
+        - include: block-node
+
+    - match: '^(?:\t{1}| {2}){{info}}'
+      scope: keyword.other
+
+    - match: '^(?=\S)'
+      pop: true
+
+    - include: block-node
+
+  extension:
+    - match: '^[ ]+(x\-)([\w\-]+)\b'
+      scope: entity.name.constant
+
+  reference:
+    - match: '^[ ]+(?:\- |)(\$ref) *(\:) *'
+      captures:
+        1: keyword.other
+        2: punctuation.separator.key-value.mapping
+      push:
+        - meta_scope: meta.block.swagger.reference
+        - match: "['\"]"
+          scope: punctuation.definition.string.begin
+          push:
+            - match: '\#\/(.+)\/([\w\-]+)'
+              scope: support.type
+              captures:
+                2: entity.other.inherited-class
+            - match: "['\"]"
+              scope: punctuation.definition.string.end
+              pop: 2

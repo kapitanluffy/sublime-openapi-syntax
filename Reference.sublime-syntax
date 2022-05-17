@@ -1,0 +1,46 @@
+%YAML 1.2
+---
+extends: Packages/YAML/YAML.sublime-syntax
+hidden: true
+file_extensions:
+  - yaml
+  - api.yaml
+scope: source.yaml
+
+variables:
+  externalDocs: (description|url)
+
+contexts:
+  main:
+    - include: externalDocs
+
+    - match: '^[ ]+(?:\- |)(\$ref) *(\:) *'
+      captures:
+        1: keyword.other
+        2: punctuation.separator.key-value.mapping
+      push:
+        - meta_scope: meta.block.swagger.reference
+        - match: "['\"]"
+          scope: punctuation.definition.string.begin
+          push:
+            - match: '\#\/(.+)\/([\w\-]+)'
+              scope: support.type
+              captures:
+                2: entity.other.inherited-class
+            - match: "['\"]"
+              scope: punctuation.definition.string.end
+              pop: 2
+
+  externalDocs:
+    - match: '^[ ]*(externalDocs) *(\:) *'
+      captures:
+        1: keyword.other
+        2: punctuation.separator.key-value.mapping
+      push:
+        - match: '^[ ]+({{externalDocs}})'
+          scope: keyword.other test
+
+        - match: '(?=^[ ]*\S)'
+          pop: true
+
+        - include: block-node

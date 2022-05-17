@@ -1,0 +1,127 @@
+%YAML 1.2
+---
+extends: Packages/YAML/YAML.sublime-syntax
+hidden: true
+file_extensions:
+  - yaml
+  - api.yaml
+scope: source.yaml
+
+variables:
+  path: '(get|post|put|delete|options|head|patch|parameters)'
+  operation: '(tags|summary|description|externalDocs|operationId|consumes|produces|parameters|responses|schemes|deprecated|security)'
+  parameter: (name|in|description|required|schema|type|format|allowEmptyValue|items|collectionFormat|default|maximum|exclusiveMaximum|minimum|exclusiveMinimum|maxLength|minLength|pattern|maxItems|minItems|uniqueItems|enum|multipleOf)
+  schema: (format|title|description|default|multipleOf|maximum|exclusiveMaximum|minimum|exclusiveMinimum|maxLength|minLength|pattern|maxItems|minItems|uniqueItems|maxProperties|minProperties|required|enum|type|items|allOf|properties|additionalProperties|discriminator|readOnly|xml|externalDocs|example)
+
+contexts:
+  main:
+    - match: ^ {2}[\'\"]?(\/[^\'\"\s]+)[\'\"]?(?=\:$)
+      captures:
+        1: variable.other.constant.swagger.path
+      push: path
+
+    - match: '(?=^ {0,2}\S)'
+      pop: true
+    - include: block-node
+
+  path:
+    # path = (get|post|put|delete|options|head|patch|parameters)
+    - match: '^ {4}{{path}}'
+      scope: keyword.other
+      push: operation
+
+    - match: '(?=^ {0,4}\S)'
+      pop: true
+    - include: block-node
+
+  operation:
+    # - meta_scope: meta.tag.swagger.paths.operation
+    - include: Packages/OpenAPI/Reference.sublime-syntax
+
+    - match: '^[ ]{6,}(responses)(\: *)'
+      captures:
+        1: keyword.other aaa
+      push: Packages/OpenAPI/Responses.sublime-syntax#paths
+
+    - match: '^(?:\t{3}| {6})(operationId)(?: *\: *)'
+      captures:
+        1: keyword.other
+      push:
+        - match: '[\w]+'
+          scope: entity.name.function entity.name.type
+        - match: \s
+          pop: true
+
+    - match: '^(?:\t{3}| {6})(parameters)(?: *\: *)'
+      captures:
+        1: keyword.other
+      push: parameter
+
+    - match: '^(?:\t{0,3}| {0,6}){{operation}}'
+      scope: keyword.other
+
+    # - match: '^(?:\t{2}| {4})'
+    - match: '(?=^ {0,6}\S)'
+      pop: true
+    - include: block-node
+
+  parameter:
+    - meta_scope: meta.swagger.parameter
+
+    - match: '^(?:\t{5}| {10})(schema)'
+      captures:
+        1: keyword.other
+      push: _schema
+
+    - match: '^[ ]{8,}(\- )*({{parameter}})\: *'
+      captures:
+        1: meta.block.swagger-parameter-item.begin
+        2: keyword.other
+
+    - match: '(?=^(\t{0,5}| {0,10})\S)'
+      pop: true
+    - include: block-node
+
+  _schema:
+    - meta_content_scope: meta.block.swagger.schema
+
+    - include: Packages/OpenAPI/Reference.sublime-syntax
+
+    - match: '^[ ]{12,}(properties)\: *'
+      captures:
+        1: keyword.other
+      set: _property
+
+    - match: '^[ ]{12,}({{schema}})\: *'
+      captures:
+        1: keyword.other meta.schema.others.top
+
+    # pop context if there is a spaced "   field: "
+    - match: '(?=^[ ]+\S+\: *)'
+      pop: true
+
+    - include: block-node
+
+  _property:
+    - meta_content_scope: meta.block.swagger.property
+
+    - include: Packages/OpenAPI/Reference.sublime-syntax
+
+    - match: "^[ ]{12,}['\"]*"
+      scope: test
+      push:
+        - match: "[\"']*\b"
+          scope: punctuation.definition.string.begin
+
+        - match: '\w+'
+          scope: entity.name.constant
+
+        - match: "\b[\"']*"
+          scope: punctuation.definition.string.end
+
+        - match: '\: *'
+          scope: punctuation.terminator
+          set: _schema
+
+    - match: '(?=^[ ]+\S+\: *)'
+      pop: true

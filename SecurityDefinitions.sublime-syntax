@@ -1,0 +1,69 @@
+%YAML 1.2
+---
+extends: Packages/YAML/YAML.sublime-syntax
+hidden: true
+file_extensions:
+  - yaml
+  - api.yaml
+scope: source.yaml
+
+variables:
+  security: (type|description|name|in|flow|authorizationUrl|tokenUrl|scopes)
+  schema: (format|title|description|default|multipleOf|maximum|exclusiveMaximum|minimum|exclusiveMinimum|maxLength|minLength|pattern|maxItems|minItems|uniqueItems|maxProperties|minProperties|required|enum|type|items|allOf|properties|additionalProperties|discriminator|readOnly|xml|externalDocs|example)
+
+contexts:
+  main:
+    - meta_content_scope: meta.block.swagger.definitions
+
+    - match: '^(?:\t{1}| {2})(\w+)\: *'
+      captures:
+        1: entity.name.type
+      push: security
+
+    - match: '^(?:[ ]{2})\- (\w+)\: *'
+      captures:
+        1: entity.other.inherited-class.
+      push: security
+
+    - match: '^(?=\S)'
+      pop: true
+
+    - include: block-node
+
+  security:
+    - meta_content_scope: meta.block.swagger.schema
+
+    - include: extension
+    - include: reference
+
+    - match: '^[\t ]{4,}({{security}})\: *'
+      captures:
+        1: keyword.other
+
+    # pop context if there is a spaced "   field: "
+    - match: '(?=^[ ]{,4}\S+\: *)'
+      pop: true
+
+    - include: block-node
+
+  extension:
+    - match: '^[ ]+(x\-)([\w\-]+)\b'
+      scope: entity.name.constant entity.name.other.extension
+
+  reference:
+    - match: '^[ ]+(\$ref) *(\:) *'
+      captures:
+        1: keyword.other
+        2: punctuation.separator.key-value.mapping
+      push:
+        - meta_scope: meta.block.swagger.reference
+        - match: "['\"]"
+          scope: punctuation.definition.string.begin
+          push:
+            - match: '\#\/(.+)\/([\w\-]+)'
+              scope: support.type
+              captures:
+                2: entity.other.inherited-class
+            - match: "['\"]"
+              scope: punctuation.definition.string.end
+              pop: 2

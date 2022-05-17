@@ -1,0 +1,110 @@
+%YAML 1.2
+---
+extends: Packages/YAML/YAML.sublime-syntax
+hidden: true
+file_extensions:
+  - yaml
+  - api.yaml
+scope: source.yaml
+
+variables:
+  schema: (format|title|description|default|multipleOf|maximum|exclusiveMaximum|minimum|exclusiveMinimum|maxLength|minLength|pattern|maxItems|minItems|uniqueItems|maxProperties|minProperties|required|enum|type|items|allOf|properties|additionalProperties|discriminator|readOnly|xml|externalDocs|example)
+  response: (description|schema|headers|examples)
+
+contexts:
+  xmain:
+    # Responses > Responses Definijtion
+    - match: '^[ ]{2,}(\w+)\: *'
+      captures:
+        1: entity.name.type
+        3: punctuation.definition.string.end
+      push: response
+
+    - match: '^(?=\S)'
+      pop: true
+
+    - include: block-node
+
+  paths:
+    # Paths > Path Item > Operation > Responses
+    # - match: '(?=^[ ]{6,}\S+\:$)'
+    - match: '^[ ]{6,}(?=\S+\:$)'
+      set:
+        - match: (\'*)(\w+)
+          captures:
+            1: punctuation.definition.string.begin
+            2: entity.name.type zzzaaa
+          set:
+            - match: \b\'*
+              scope: punctuation.definition.string.end xxx
+            - match: '\: *'
+              scope: punctuation.separator.key-value.mapping
+              push: response
+            - match: '(?=^[ ]{,6}\S+)'
+              pop: true
+
+    # - include: block-node
+
+  response:
+    - include: Packages/OpenAPI/Reference.sublime-syntax
+
+    - match: '^(?:[ ]{4,})(schema)\: *'
+      captures:
+        1: keyword.other
+      push: _schema
+
+    - match: '^[ ]+({{response}})\: *'
+      captures:
+        1: keyword.other
+
+    - match: '(?=^[ ]*\S+)'
+      scope: trtr
+      pop: true
+
+    - include: block-node
+
+  _schema:
+    - meta_content_scope: meta.block.swagger.schema
+
+    - include: Packages/OpenAPI/Reference.sublime-syntax
+    # - match: '^[ ]+(?=\$ref *\: *)'
+    #   push: reference
+
+    - match: '^[\t ]{4,}(properties)\: *'
+      captures:
+        1: keyword.other
+      set: _property
+
+    - match: '^[\t ]{4,}({{schema}})\: *'
+      captures:
+        1: keyword.other meta.schema.others.top
+
+    # pop context if there is a spaced "   field: "
+    - match: '(?=^[ ]*\S+\: *)'
+      pop: true
+
+    - include: block-node
+
+  _property:
+    - meta_content_scope: meta.block.swagger.property
+
+    - include: Packages/OpenAPI/Reference.sublime-syntax
+
+    - match: "^[ ]{6,}[\'\"]*"
+      scope: test
+      push:
+        - match: "[\"\']*\b"
+          scope: punctuation.definition.string.begin
+
+        - match: '\w+'
+          scope: entity.name.constant
+
+        - match: "\b[\"\']*"
+          scope: punctuation.definition.string.end
+
+        - match: '\: *'
+          scope: punctuation.terminator
+          set: _schema
+
+    - match: '(?=^[ ]*\S+\: *)'
+      pop: true
