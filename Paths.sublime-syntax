@@ -15,7 +15,7 @@ variables:
 
 contexts:
   main:
-    - match: ^ {2}[\'\"]?(\/[^\'\"\s]+)[\'\"]?(?=\:$)
+    - match: ^ {2}[\'\"]?(\/[^\'\"\s]*)[\'\"]?(?=\:$)
       captures:
         1: variable.other.constant.swagger.path
       push: path
